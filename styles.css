@@ -1,10 +1,17 @@
 body {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     height: 100vh;
     margin: 0;
     background-color: #333;
+    color: white;
+}
+
+#turn-indicator {
+    margin-bottom: 20px;
+    font-size: 24px;
 }
 
 #board {
@@ -33,6 +40,7 @@ body {
     height: 50px;
     border-radius: 50%;
     margin: 5px;
+    position: relative;
 }
 
 .red {
@@ -41,4 +49,12 @@ body {
 
 .black-piece {
     background-color: black;
+}
+
+.king {
+    border: 3px solid gold;
+}
+
+.selected {
+    box-shadow: 0 0 10px yellow;
 }
