@@ -6,10 +6,14 @@ const undoBtn = document.getElementById('undo-btn');
 const restartBtn = document.getElementById('restart-btn');
 const hintBtn = document.getElementById('hint-btn');
 const aiToggleBtn = document.getElementById('ai-toggle-btn');
+const boardSizeSelect = document.getElementById('board-size');
+const difficultySelect = document.getElementById('difficulty');
 
-const boardState = [];
+let boardSize = parseInt(boardSizeSelect.value);
+let difficulty = difficultySelect.value;
+let boardState = [];
 let currentPlayer = 'R'; 
-let moveHistory = []; 
+let moveHistory = [];
 let selectedPiece = null;
 let validMoves = [];
 let redScore = 0;
@@ -24,9 +28,12 @@ initializeBoard();
 startTimer();
 
 function initializeBoard() {
-    for (let row = 0; row < 8; row++) {
+    board.innerHTML = '';
+    boardState.length = 0;
+
+    for (let row = 0; row < boardSize; row++) {
         const rowState = [];
-        for (let col = 0; col < 8; col++) {
+        for (let col = 0; col < boardSize; col++) {
             const square = document.createElement('div');
             square.classList.add('square');
             square.classList.add((row + col) % 2 === 0 ? 'white' : 'black');
@@ -39,7 +46,7 @@ function initializeBoard() {
                 piece.classList.add('piece', 'red');
                 square.appendChild(piece);
                 rowState.push('R');
-            } else if (row > 4 && (row + col) % 2 !== 0) {
+            } else if (row >= boardSize - 3 && (row + col) % 2 !== 0) {
                 const piece = document.createElement('div');
                 piece.classList.add('piece', 'black-piece');
                 square.appendChild(piece);
@@ -50,14 +57,10 @@ function initializeBoard() {
         }
         boardState.push(rowState);
     }
+
+    board.style.gridTemplateColumns = `repeat(${boardSize}, 60px)`;
+    board.style.gridTemplateRows = `repeat(${boardSize}, 60px)`;
 }
-
-
-board.addEventListener('click', handleBoardClick);
-undoBtn.addEventListener('click', undoMove);
-restartBtn.addEventListener('click', resetGame);
-hintBtn.addEventListener('click', showHint);
-aiToggleBtn.addEventListener('click', toggleAI);
 
 function handleBoardClick(e) {
     const square = e.target.closest('.square');
@@ -132,7 +135,7 @@ function movePiece(row, col) {
     }
 
     
-    if ((row === 0 && currentPlayer === 'B') || (row === 7 && currentPlayer === 'R')) {
+    if ((row === 0 && currentPlayer === 'B') || (row === boardSize - 1 && currentPlayer === 'R')) {
         piece.classList.add('king');
         boardState[row][col] += 'K'; 
     }
@@ -189,7 +192,7 @@ function getValidMoves(row, col, forCapture = false) {
 }
 
 function isValidMove(startRow, startCol, endRow, endCol, forCapture = false) {
-    if (endRow < 0 || endRow > 7 || endCol < 0 || endCol > 7) return false;
+    if (endRow < 0 || endRow >= boardSize || endCol < 0 || endCol >= boardSize) return false;
     if (boardState[endRow][endCol]) return false;
 
     const rowDiff = endRow - startRow;
@@ -286,22 +289,59 @@ function showHint() {
 
 function findBestMove() {
     
-    const possibleMoves = [];
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
+    const moves = [];
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
             if (boardState[row][col] && boardState[row][col][0] === currentPlayer) {
-                const moves = getValidMoves(row, col);
-                if (moves.length > 0) {
-                    possibleMoves.push({ row, col, moves });
-                }
+                const pieceMoves = getValidMoves(row, col);
+                pieceMoves.forEach(move => moves.push({ start: { row, col }, end: move }));
             }
         }
     }
-    if (possibleMoves.length > 0) {
-        const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-        return move.moves[Math.floor(Math.random() * move.moves.length)];
+    
+    
+    if (difficulty === 'easy') {
+        return moves[Math.floor(Math.random() * moves.length)];
+    } else if (difficulty === 'medium') {
+        
+        const capturingMoves = moves.filter(move => Math.abs(move.end.row - move.start.row) === 2);
+        if (capturingMoves.length > 0) return capturingMoves[Math.floor(Math.random() * capturingMoves.length)];
+    } else if (difficulty === 'hard') {
+        
+        let bestMove = null;
+        let bestScore = -Infinity;
+        moves.forEach(move => {
+            const score = evaluateMove(move);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
+            }
+        });
+        return bestMove;
     }
     return null;
+}
+
+function evaluateMove(move) {
+    
+    
+
+    
+    let score = 0;
+
+    
+    if (Math.abs(move.end.row - move.start.row) === 2) {
+        score += 10; 
+    }
+
+    
+    if (currentPlayer === 'R') {
+        score += 10 - move.end.row; 
+    } else {
+        score += move.end.row; 
+    }
+
+    return score;
 }
 
 function toggleAI() {
@@ -315,10 +355,10 @@ function toggleAI() {
 function makeAIMove() {
     const bestMove = findBestMove();
     if (bestMove) {
-        const pieceSquare = board.querySelector(`.square[data-row="${bestMove.row}"][data-col="${bestMove.col}"]`);
+        const pieceSquare = board.querySelector(`.square[data-row="${bestMove.start.row}"][data-col="${bestMove.start.col}"]`);
         if (pieceSquare) {
-            selectPiece(bestMove.row, bestMove.col);
-            movePiece(bestMove.row, bestMove.col);
+            selectPiece(bestMove.start.row, bestMove.start.col);
+            movePiece(bestMove.end.row, bestMove.end.col);
         }
     }
 }
@@ -331,8 +371,8 @@ function checkWinCondition() {
 
 function renderBoard() {
     board.innerHTML = '';
-    for (let row = 0; row < 8; row++) {
-        for (let col = 0; col < 8; col++) {
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
             const square = document.createElement('div');
             square.classList.add('square');
             square.classList.add((row + col) % 2 === 0 ? 'white' : 'black');
@@ -350,3 +390,19 @@ function renderBoard() {
         }
     }
 }
+
+function handleSettingsChange() {
+    boardSize = parseInt(boardSizeSelect.value);
+    difficulty = difficultySelect.value;
+    resetGame();
+}
+
+
+board.addEventListener('click', handleBoardClick);
+undoBtn.addEventListener('click', undoMove);
+restartBtn.addEventListener('click', resetGame);
+hintBtn.addEventListener('click', showHint);
+aiToggleBtn.addEventListener('click', toggleAI);
+boardSizeSelect.addEventListener('change', handleSettingsChange);
+difficultySelect.addEventListener('change', handleSettingsChange);
+
